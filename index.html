@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hiệu ứng Text và Tim Nâng Cao (TikTok Style)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #000000; /* Nền đen tuyền như TikTok */
+        color: white;
+        font-family: "Poppins", sans-serif; /* Font hiện đại hơn */
+        overflow: hidden; /* Quan trọng: để không có scrollbar */
+        margin: 0;
+        height: 100vh;
+        position: relative; /* Cho các element con định vị tuyệt đối */
+      }
+
+      /* Container cho text và tim để không che phủ UI */
+      #effect-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1; /* Nằm dưới UI */
+      }
+
+      .floating-text {
+        position: absolute;
+        font-weight: bold;
+        /* Màu sắc sẽ được set bằng JS, ví dụ: color: #FF69B4; */
+        text-shadow: 0 0 5px rgba(255, 255, 255, 0.3),
+          0 0 10px rgba(255, 105, 180, 0.5); /* Bóng trắng nhẹ và hồng */
+        opacity: 0;
+        animation: fadeInOutDrift 8s ease-in-out; /* Animation dài hơn, mượt hơn */
+        white-space: nowrap; /* Đảm bảo text trên 1 dòng nếu không xuống dòng chủ động */
+        will-change: transform, opacity; /* Tối ưu hiệu năng animation */
+      }
+
+      @keyframes fadeInOutDrift {
+        0%,
+        100% {
+          opacity: 0;
+          transform: translateY(20px) scale(0.8)
+            rotate(var(--initial-rotate, 0deg));
+        }
+        10% {
+          opacity: 1;
+          transform: translateY(0) scale(1) rotate(var(--initial-rotate, 0deg));
+        }
+        50% {
+          opacity: 0.9;
+          transform: translateY(calc(var(--drift-y, -10px))) scale(1.05)
+            rotate(var(--initial-rotate, 0deg));
+        }
+        90% {
+          opacity: 1;
+          transform: translateY(0) scale(1) rotate(var(--initial-rotate, 0deg));
+        }
+      }
+
+      .heart {
+        position: absolute;
+        font-size: 2em; /* Sẽ được set random bằng JS */
+        color: #ff0000; /* Màu đỏ cơ bản cho tim */
+        opacity: 0;
+        animation: fallAndFade 5s linear;
+        will-change: transform, opacity;
+        text-shadow: 0 0 8px rgba(255, 0, 0, 0.7);
+      }
+
+      @keyframes fallAndFade {
+        0% {
+          top: -10%;
+          opacity: 0;
+          transform: rotate(0deg) scale(var(--initial-scale, 0.5));
+        }
+        10% {
+          opacity: 1;
+          transform: scale(var(--target-scale, 1));
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          top: 110%;
+          opacity: 0;
+          transform: rotate(360deg) scale(var(--initial-scale, 0.7));
+        }
+      }
+
+      /* ---- Giả lập Giao diện TikTok ---- */
+      .tiktok-ui-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px 15px;
+        box-sizing: border-box;
+        pointer-events: none; /* Overlay không bắt click, các con sẽ bắt */
+        z-index: 2; /* Nằm trên background hiệu ứng */
+      }
+
+      /* Các thành phần con của UI sẽ có pointer-events: auto; */
+      .top-bar,
+      .side-icons,
+      .video-info-container,
+      .bottom-nav {
+        pointer-events: auto;
+      }
+
+      .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        font-size: 14px;
+      }
+      .top-bar .live-tag {
+        font-weight: bold;
+      }
+      .top-bar .nav-links span {
+        margin: 0 8px;
+        color: #ccc;
+        cursor: pointer;
+      }
+      .top-bar .nav-links span.active {
+        color: white;
+        font-weight: bold;
+        border-bottom: 2px solid white;
+        padding-bottom: 2px;
+      }
+      .top-bar .search-icon {
+        font-size: 20px;
+        cursor: pointer;
+      }
+
+      .main-content-area {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end; /* Đẩy info xuống dưới, icons ở bên */
+        flex-grow: 1;
+        margin-bottom: 60px; /* Khoảng trống cho bottom-nav */
+      }
+
+      .video-info-container {
+        color: white;
+        max-width: calc(100% - 70px); /* Tránh chồng lên side icons */
+      }
+      .video-info-container .username {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .video-info-container .description {
+        font-size: 0.9em;
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+      .video-info-container .description .highlight {
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 0 3px;
+        border-radius: 3px;
+      }
+      .video-info-container .music-ticker {
+        display: flex;
+        align-items: center;
+        font-size: 0.85em;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .music-ticker svg {
+        margin-right: 5px;
+        width: 16px;
+        height: 16px;
+      }
+      .music-ticker .music-name {
+        animation: marquee 12s linear infinite;
+        padding-left: 100%; /* Bắt đầu từ ngoài màn hình phải */
+        display: inline-block;
+      }
+      @keyframes marquee {
+        0% {
+          transform: translateX(0%);
+        }
+        100% {
+          transform: translateX(-150%);
+        } /* Điều chỉnh để text chạy hết */
+      }
+
+      .side-icons {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px; /* Khoảng cách giữa các icon */
+      }
+      .side-icons .icon-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+      }
+      .side-icons .profile-pic {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: 2px solid white;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        margin-bottom: 20px; /* Khoảng cách lớn hơn cho avatar */
+      }
+      .side-icons .profile-pic .plus-badge {
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #fe2c55;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      .side-icons .icon-item {
+        font-size: 28px;
+      } /* Kích thước icon */
+      .side-icons .icon-text {
+        font-size: 0.8em;
+        margin-top: 2px;
+      }
+      .side-icons .music-disc {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          #333 25%,
+          #111 26%,
+          #111 40%,
+          #444 41%,
+          #222 60%,
+          #555 61%
+        );
+        border: 3px solid #444;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        animation: spin 4s linear infinite;
+      }
+      .side-icons .music-disc img {
+        width: 60%;
+        height: 60%;
+        border-radius: 50%;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #000;
+        border-top: 1px solid #222;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 8px 0;
+        font-size: 11px;
+        height: 50px; /* Chiều cao cố định */
+      }
+      .bottom-nav .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #888;
+        cursor: pointer;
+        position: relative;
+      }
+      .bottom-nav .nav-item.active {
+        color: white;
+      }
+      .bottom-nav .nav-item svg {
+        width: 22px;
+        height: 22px;
+        margin-bottom: 2px;
+      }
+      .bottom-nav .nav-item-create {
+        width: 45px;
+        height: 30px;
+        background-color: white;
+        border-radius: 8px;
+        color: black;
+        font-size: 22px;
+        line-height: 30px;
+        text-align: center;
+        font-weight: bold;
+      }
+      .bottom-nav .nav-item .badge {
+        position: absolute;
+        top: -4px;
+        right: -6px;
+        background-color: #fe2c55;
+        color: white;
+        border-radius: 10px;
+        padding: 1px 5px;
+        font-size: 10px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="effect-background">
+      <!-- Text và Tim sẽ được thêm vào đây bằng JavaScript -->
+    </div>
+
+    <div class="tiktok-ui-overlay">
+      <div class="top-bar">
+        <span class="live-tag">LIVE</span>
+        <div class="nav-links">
+          <span>Bạn bè</span>
+          <span class="active">Khám phá</span>
+          <span>Đang Follow</span>
+          <span>Đề xuất</span>
+        </div>
+        <span class="search-icon">🔍</span>
+      </div>
+
+      <div class="main-content-area">
+        <div class="video-info-container">
+          <div class="username">@BuiBaoToan</div>
+          <div class="description">
+            Gửi thư tới người yêu của bạn theo phong cách
+            <span class="highlight">DEV</span> 🥰
+          </div>
+          <div class="music-ticker">
+            <svg fill="white" viewBox="0 0 24 24">
+              <path
+                d="M12 3v10.55c-.59-.34-1.27-.55-2-.55c-2.21 0-4 1.79-4 4s1.79 4 4 4s4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2s2 .9 2 2s-.9 2-2 2z"
+              />
+            </svg>
+            <span class="music-name"
+              >Bùi Bảo Toàn - Rất yêu em - Luôn luôn bên nhau</span
+            >
+          </div>
+        </div>
+
+        <div class="side-icons">
+          <div class="icon-group">
+            <!-- Thay bằng ảnh QR của bạn hoặc ảnh profile -->
+            <div
+              class="profile-pic"
+              style="
+                background-image: url('https://scontent.fdad3-5.fna.fbcdn.net/v/t39.30808-1/315855282_1129295367970350_5118803472078151329_n.jpg?stp=dst-jpg_p200x200&_nc_cat=104&ccb=1-7&_nc_sid=5f2048&_nc_eui2=AeEEb1w_2y8s-y_fG95qP9_N1kSgY0u_C33WRKBjS78Lffv7M9Wb9x1s47sO38iXF1-73k21oJ2k18qR-o0N3hQ4&_nc_ohc=cKjF28H7sFwQ7kNvgF1Dk7o&_nc_ht=scontent.fdad3-5.fna&oh=00_AYDk363hY4P7Y_21_0-y5yM5iJ5014y66qF7B4s1Mh6h4w&oe=6652097D');
+              "
+            >
+              <div class="plus-badge">+</div>
+            </div>
+          </div>
+          <div class="icon-group">
+            <span class="icon-item">❤️</span>
+            <span class="icon-text">999K</span>
+          </div>
+          <div class="icon-group">
+            <span class="icon-item">💬</span>
+            <span class="icon-text">500k</span>
+          </div>
+          <div class="icon-group">
+            <span class="icon-item">🔖</span>
+            <span class="icon-text">814</span>
+          </div>
+          <div class="icon-group">
+            <span class="icon-item">↪️</span>
+            <span class="icon-text">303</span>
+          </div>
+          <div class="icon-group">
+            <div class="music-disc">
+              <!-- Thay bằng ảnh bìa album hoặc avatar nhỏ -->
+              <img
+                src="eenie.mp3"
+                alt="music"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3L2 12h3v8h5z" />
+          </svg>
+          Trang chủ
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M21.99 6.86L12 1L2 6.86V20c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6.86zM12 3.31L19.19 8H4.81L12 3.31zM4 10h16v10H4V10zm5 1h6v2H9v-2z"
+            />
+          </svg>
+          Cửa hàng
+        </div>
+        <div class="nav-item nav-item-create">+</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5l-8-5V6l8 5l8-5v2z"
+            />
+          </svg>
+          <span class="badge">9+</span>
+          Hộp thư
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4s-4 1.79-4 4s1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+            />
+          </svg>
+          Hồ sơ
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const effectBackground = document.getElementById("effect-background");
+
+      const phrases = [
+        "Bùi Bảo Toàn",
+        "Love u so much",
+        "Mãi yêu Em",
+        "Luôn luôn bên nhau",
+        "Mãi yêu ❤️",
+        "Rất là nhớ em",
+        "Thương em nhiều lắm",
+        "Forever together",
+        "My Everything",
+        "You & Me",
+        "Our Love Story",
+        "Cùng nhau già đi",
+      ];
+      const textColors = [
+        "#FF69B4",
+        "#FFC0CB",
+        "#FFFFFF",
+        "#FFB6C1",
+        "#FA8072",
+        "#F8F8FF",
+      ];
+
+      const MAX_ELEMENTS = 25; // Tổng số text và tim
+      let currentElements = 0;
+
+      function getRandom(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function createFloatingText() {
+        if (currentElements >= MAX_ELEMENTS) return;
+
+        const textEl = document.createElement("div");
+        textEl.classList.add("floating-text");
+        textEl.textContent =
+          phrases[Math.floor(Math.random() * phrases.length)];
+        textEl.style.color =
+          textColors[Math.floor(Math.random() * textColors.length)];
+
+        textEl.style.left = getRandom(5, 80) + "vw";
+        textEl.style.top = getRandom(10, 85) + "vh";
+        textEl.style.fontSize = getRandom(1.5, 4) + "em"; // Kích thước đa dạng hơn
+
+        const initialRotate = getRandom(-20, 20);
+        const driftY = getRandom(-15, 5);
+        textEl.style.setProperty("--initial-rotate", initialRotate + "deg");
+        textEl.style.setProperty("--drift-y", driftY + "px");
+
+        const animationDuration = getRandom(7, 12); // Thời gian tồn tại
+        textEl.style.animationDuration = animationDuration + "s";
+        textEl.style.animationDelay =
+          getRandom(0, -animationDuration * 0.8) + "s"; // Ngẫu nhiên điểm bắt đầu
+
+        effectBackground.appendChild(textEl);
+        currentElements++;
+
+        setTimeout(() => {
+          textEl.remove();
+          currentElements--;
+        }, animationDuration * 1000);
+      }
+
+      function createHeart() {
+        if (currentElements >= MAX_ELEMENTS) return;
+
+        const heart = document.createElement("div");
+        heart.classList.add("heart");
+        heart.innerHTML = "❤️"; // Hoặc các biến thể: 💕💖💗💓💞💝
+        if (Math.random() > 0.7)
+          heart.innerHTML = ["💕", "💖", "💗", "💓", "💞", "💝"][
+            Math.floor(Math.random() * 6)
+          ];
+
+        heart.style.left = getRandom(0, 95) + "vw";
+        const initialScale = getRandom(0.4, 0.8);
+        const targetScale = getRandom(0.8, 1.5);
+        heart.style.setProperty("--initial-scale", initialScale);
+        heart.style.setProperty("--target-scale", targetScale);
+        heart.style.fontSize = getRandom(1.5, 3.5) + "em"; // Kích thước tim
+
+        const fallDuration = getRandom(4, 7);
+        heart.style.animationDuration = fallDuration + "s";
+        heart.style.animationDelay = getRandom(0, -fallDuration * 0.8) + "s";
+
+        effectBackground.appendChild(heart);
+        currentElements++;
+
+        setTimeout(() => {
+          heart.remove();
+          currentElements--;
+        }, fallDuration * 1000);
+      }
+
+      // Tạo hiệu ứng ban đầu và liên tục
+      for (let i = 0; i < 10; i++) {
+        // Tạo 10 element ban đầu
+        if (Math.random() > 0.4) {
+          // Tỷ lệ text nhiều hơn tim
+          setTimeout(createFloatingText, i * 150);
+        } else {
+          setTimeout(createHeart, i * 150);
+        }
+      }
+
+      setInterval(() => {
+        if (Math.random() > 0.3) createFloatingText(); // Tạo text thường xuyên hơn
+      }, 600);
+      setInterval(createHeart, 900); // Tạo tim ít thường xuyên hơn
+
+      // Âm thanh (bạn cần file nhạc và xử lý tương tác người dùng)
+      const audio = new Audio('eenie.mp3');
+      audio.volume = 0.5; // Giảm âm lượng để không quá to
+      document.body.addEventListener('click', () => {
+          if (audio.paused) {
+              audio.play().catch(e => console.error("Audio play failed", e));
+              audio.loop = true;
+          }
+      }, { once: true });
+    </script>
+  </body>
+</html>
